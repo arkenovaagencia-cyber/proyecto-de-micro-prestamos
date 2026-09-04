@@ -4,7 +4,17 @@ import Image from "next/image";
 import Link from "next/link";
 import Reveal from "./Reveal";
 
-export default function HomeExperience() {
+export default function HomeExperience({
+  nombrePublico = "Prestamigo",
+  heroTitulo = "Financiamiento inteligente para tu próximo paso.",
+  heroSubtitulo = "Solicita, aprueba y da seguimiento a tu préstamo con la seguridad de una plataforma construida para crecer contigo.",
+  logoUrl,
+}: {
+  nombrePublico?: string;
+  heroTitulo?: string;
+  heroSubtitulo?: string;
+  logoUrl?: string | null;
+}) {
   const pasos = [
     { n: "01", t: "Solicita en minutos", d: "Monto, plazo y garantía desde tu teléfono." },
     { n: "02", t: "Revisamos con criterio", d: "Aprobamos, ajustamos o explicamos por qué no." },
@@ -29,8 +39,12 @@ export default function HomeExperience() {
       <header className="fixed top-0 left-0 right-0 z-20">
         <nav className="max-w-6xl mx-auto flex items-center justify-between px-6 py-6">
           <div className="flex items-center gap-2.5 font-semibold text-lg tracking-tight">
-            <span className="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center text-[#eac888] text-xs font-mono">P$</span>
-            Prestamigo
+            {logoUrl ? (
+              <img src={logoUrl} alt={nombrePublico} className="w-8 h-8 rounded-full object-cover border border-white/20" />
+            ) : (
+              <span className="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center text-[#eac888] text-xs font-mono">P$</span>
+            )}
+            {nombrePublico}
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm text-white/70">
             <a href="#como-funciona" className="hover:text-white transition">Cómo funciona</a>
@@ -58,12 +72,12 @@ export default function HomeExperience() {
           </Reveal>
           <Reveal delayMs={100}>
             <h1 className="font-semibold leading-[1.05] tracking-tight text-4xl sm:text-5xl md:text-6xl mb-6 max-w-3xl" style={{ textShadow: "0 2px 30px rgba(0,0,0,0.65)" }}>
-              Financiamiento inteligente para tu próximo paso.
+              {heroTitulo}
             </h1>
           </Reveal>
           <Reveal delayMs={200}>
             <p className="text-base sm:text-lg text-white/75 max-w-xl mb-3" style={{ textShadow: "0 2px 20px rgba(0,0,0,0.7)" }}>
-              Solicita, aprueba y da seguimiento a tu préstamo con la seguridad de una plataforma construida para crecer contigo.
+              {heroSubtitulo}
             </p>
             <p className="text-sm text-[#eac888]/90 font-medium mb-8">
               Crea tu cuenta gratis para solicitar — sin cuenta no se puede pedir prestado.
@@ -163,7 +177,7 @@ export default function HomeExperience() {
           </Reveal>
 
           <div className="absolute bottom-8 left-0 right-0 text-center text-xs text-white/40">
-            © Prestamigo — <Link href="/login" className="underline hover:text-white/70">Iniciar sesión</Link>
+            © {nombrePublico} — <Link href="/login" className="underline hover:text-white/70">Iniciar sesión</Link>
           </div>
         </section>
       </main>

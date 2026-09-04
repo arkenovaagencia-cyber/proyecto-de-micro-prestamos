@@ -25,6 +25,16 @@ function fmtFecha(f: string) {
   return new Date(f + "T00:00:00").toLocaleDateString("es-DO", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+const MORA_DIARIA_DEFAULT = 50;
+
+function calcularRecargo(fechaVencimiento: string, montoMoraDiaria: number) {
+  const hoy = new Date();
+  const venc = new Date(fechaVencimiento + "T00:00:00");
+  const diasAtraso = Math.floor((hoy.getTime() - venc.getTime()) / 86400000);
+  if (diasAtraso <= 0) return { diasAtraso: 0, recargo: 0 };
+  return { diasAtraso, recargo: diasAtraso * montoMoraDiaria };
+}
+
 export default async function ClienteDashboard() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -57,6 +67,22 @@ export default async function ClienteDashboard() {
         .order("fecha_solicitud", { ascending: false })
     : { data: [] };
 
+  let moraDiaria = MORA_DIARIA_DEFAULT;
+  let contactoWhatsapp: string | null = null;
+  let contactoCorreo: string | null = null;
+  if (profile?.prestamista_id) {
+    const { data: config } = await supabase
+      .from("configuracion_plataforma")
+      .select("config_prestamos, contacto")
+      .eq("prestamista_id", profile.prestamista_id)
+      .single();
+    const cp = (config?.config_prestamos ?? {}) as Record<string, number>;
+    moraDiaria = cp.mora_diaria ?? MORA_DIARIA_DEFAULT;
+    const contacto = (config?.contacto ?? {}) as Record<string, string>;
+    contactoWhatsapp = contacto.whatsapp || null;
+    contactoCorreo = contacto.correo || null;
+  }
+
   const activos = (prestamos ?? []).filter((p) => p.estado === "activo").length;
   const enRevision = (prestamos ?? []).filter((p) => ["pendiente", "revision"].includes(p.estado)).length;
   const pagados = (prestamos ?? []).filter((p) => p.estado === "pagado").length;
@@ -72,6 +98,14 @@ export default async function ClienteDashboard() {
           Prestamigo
         </div>
         <div className="flex items-center gap-4 text-sm">
+          {contactoWhatsapp && (
+            <a href={`https://wa.me/1${contactoWhatsapp.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-[#eac888] transition">
+              Contáctanos
+            </a>
+          )}
+          {!contactoWhatsapp && contactoCorreo && (
+            <a href={`mailto:${contactoCorreo}`} className="text-white/60 hover:text-[#eac888] transition">Contáctanos</a>
+          )}
           <span className="text-white/60">Hola, <b className="text-white">{profile?.nombre?.split(" ")[0]}</b></span>
           <LogoutButton />
         </div>
@@ -117,9 +151,19 @@ export default async function ClienteDashboard() {
                     {p.estado === "activo" && (
                       <div className="text-sm text-white/60 mb-1">Saldo pendiente: <b className="font-mono text-[#eac888]">{money(saldo)}</b></div>
                     )}
-                    {p.estado === "activo" && proximaCuota && (
-                      <div className="text-sm text-white/60">Próximo pago: <b className="text-white">{fmtFecha(proximaCuota.fecha_vencimiento)}</b> · <span className="font-mono">{money(proximaCuota.monto_cuota)}</span></div>
-                    )}
+                    {p.estado === "activo" && proximaCuota && (() => {
+                      const { diasAtraso, recargo } = calcularRecargo(proximaCuota.fecha_vencimiento, moraDiaria);
+                      return (
+                        <>
+                          <div className="text-sm text-white/60">Próximo pago: <b className="text-white">{fmtFecha(proximaCuota.fecha_vencimiento)}</b> · <span className="font-mono">{money(proximaCuota.monto_cuota)}</span></div>
+                          {diasAtraso > 0 && (
+                            <div className="text-sm text-red-300 mt-1">
+                              {diasAtraso} {diasAtraso === 1 ? "día" : "días"} de atraso — recargo: <b className="font-mono">{money(recargo)}</b> (total a pagar: <b className="font-mono">{money(proximaCuota.monto_cuota + recargo)}</b>)
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                     {(p.estado === "pendiente" || p.estado === "revision") && (
                       <div className="text-sm text-white/50">Total con interés: <b className="font-mono text-white/80">{money(total)}</b></div>
                     )}

@@ -47,12 +47,29 @@ export default async function SolicitarPage() {
     redirect("/cliente/dashboard?error=sin_prestamista");
   }
 
+  const { data: config } = await supabase
+    .from("configuracion_plataforma")
+    .select("config_prestamos, metodos_pago_activos, info_transferencia")
+    .eq("prestamista_id", cliente.prestamista_id)
+    .single();
+
+  const cp = (config?.config_prestamos ?? {}) as Record<string, number>;
+  const tasas = {
+    semanal: cp.tasa_semanal ?? 15,
+    quincenal: cp.tasa_quincenal ?? 20,
+    mensual: cp.tasa_mensual ?? 30,
+  };
+  const ltv = {
+    umbral: cp.ltv_umbral ?? 2,
+    descuentoPuntos: cp.ltv_descuento_puntos ?? 10,
+  };
+
   return (
     <div className="min-h-screen bg-[#0a0906] text-white">
       <div className="max-w-4xl mx-auto px-6 pt-10 pb-20">
         <h1 className="text-2xl font-semibold">Solicitar préstamo</h1>
         <p className="text-white/50 text-sm mt-1 mb-8">Completa los datos — el resumen se actualiza mientras escribes.</p>
-        <SolicitarForm clienteId={cliente.id} prestamistaId={cliente.prestamista_id} />
+        <SolicitarForm clienteId={cliente.id} prestamistaId={cliente.prestamista_id} tasas={tasas} ltv={ltv} />
       </div>
     </div>
   );

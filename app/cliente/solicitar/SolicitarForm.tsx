@@ -16,17 +16,40 @@ const GARANTIAS = [
   { id: "otro", lb: "Otro artículo" },
 ] as const;
 
+// Quincenal primero porque es el plazo que este negocio prefiere ofrecer.
+const FRECUENCIAS = [
+  { id: "quincenal", lb: "Quincenal (recomendado)" },
+  { id: "semanal", lb: "Semanal" },
+  { id: "mensual", lb: "Mensual" },
+] as const;
+
+// Los plazos posibles dependen de la frecuencia — evita combinaciones que
+// no tienen sentido para un microcrédito (ej. 12 cuotas mensuales = 1 año
+// para un préstamo de RD$5,000).
+const PLAZOS_POR_FRECUENCIA: Record<string, number[]> = {
+  semanal: [1, 2, 3, 4],
+  quincenal: [1, 2, 3, 4],
+  mensual: [1, 2, 3],
+};
+
 function money(n: number) {
   return "RD$ " + n.toLocaleString("es-DO", { minimumFractionDigits: 2 });
 }
 
-export default function SolicitarForm({ clienteId, prestamistaId }: { clienteId: string; prestamistaId: string }) {
+interface Tasas { semanal: number; quincenal: number; mensual: number }
+interface Ltv { umbral: number; descuentoPuntos: number }
+
+export default function SolicitarForm({
+  clienteId, prestamistaId, tasas, ltv,
+}: {
+  clienteId: string; prestamistaId: string; tasas: Tasas; ltv: Ltv;
+}) {
   const router = useRouter();
   const supabase = createClient();
 
   const [monto, setMonto] = useState(5000);
   const [plazo, setPlazo] = useState(4);
-  const [frecuencia, setFrecuencia] = useState<"semanal" | "quincenal" | "mensual">("mensual");
+  const [frecuencia, setFrecuencia] = useState<"semanal" | "quincenal" | "mensual">("quincenal");
   const [tipoGarantia, setTipoGarantia] = useState<string | null>(null);
   const [descripcion, setDescripcion] = useState("");
   const [valorEstimado, setValorEstimado] = useState("");
@@ -34,12 +57,21 @@ export default function SolicitarForm({ clienteId, prestamistaId }: { clienteId:
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const TASA = 20;
-  const { interes, total, cuota } = useMemo(() => {
-    const i = monto * (TASA / 100);
+  function cambiarFrecuencia(f: "semanal" | "quincenal" | "mensual") {
+    setFrecuencia(f);
+    const opciones = PLAZOS_POR_FRECUENCIA[f];
+    if (!opciones.includes(plazo)) setPlazo(opciones[opciones.length - 1]);
+  }
+
+  const { tasaBase, tasaFinal, descuentoAplicado, interes, total, cuota } = useMemo(() => {
+    const base = tasas[frecuencia];
+    const valor = Number(valorEstimado) || 0;
+    const califica = valor > 0 && monto > 0 && valor >= monto * ltv.umbral;
+    const final = califica ? Math.max(base - ltv.descuentoPuntos, 5) : base;
+    const i = monto * (final / 100);
     const t = monto + i;
-    return { interes: i, total: t, cuota: t / plazo };
-  }, [monto, plazo]);
+    return { tasaBase: base, tasaFinal: final, descuentoAplicado: califica, interes: i, total: t, cuota: t / plazo };
+  }, [monto, plazo, frecuencia, valorEstimado, tasas, ltv]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -56,7 +88,7 @@ export default function SolicitarForm({ clienteId, prestamistaId }: { clienteId:
         prestamista_id: prestamistaId,
         cliente_id: clienteId,
         monto_solicitado: monto,
-        tasa_interes: TASA,
+        tasa_interes: tasaFinal,
         plazo_cuotas: plazo,
         frecuencia_pago: frecuencia,
         estado: "pendiente",
@@ -108,19 +140,31 @@ export default function SolicitarForm({ clienteId, prestamistaId }: { clienteId:
         <div className="mb-4">
           <label className={labelClass}>Plazo</label>
           <select value={plazo} onChange={(e) => setPlazo(Number(e.target.value))} className={fieldClass}>
-            {[1, 2, 4, 6, 12].map((n) => <option key={n} value={n} className="text-black">{n} cuotas</option>)}
+            {PLAZOS_POR_FRECUENCIA[frecuencia].map((n) => <option key={n} value={n} className="text-black">{n} {n === 1 ? "cuota" : "cuotas"}</option>)}
           </select>
         </div>
-        <div className="mb-6">
+        <div className="mb-2">
           <label className={labelClass}>Frecuencia de pago</label>
-          <select value={frecuencia} onChange={(e) => setFrecuencia(e.target.value as typeof frecuencia)} className={fieldClass}>
-            <option value="mensual" className="text-black">Mensual</option>
-            <option value="quincenal" className="text-black">Quincenal</option>
-            <option value="semanal" className="text-black">Semanal</option>
-          </select>
+          <div className="grid grid-cols-3 gap-2">
+            {FRECUENCIAS.map((f) => (
+              <button
+                type="button"
+                key={f.id}
+                onClick={() => cambiarFrecuencia(f.id)}
+                className={clsx(
+                  "border rounded-xl py-2.5 px-2 text-center text-xs font-semibold transition",
+                  frecuencia === f.id ? "border-[#eac888] bg-[#eac888]/10 text-[#eac888]" : "border-white/15 text-white/70 hover:border-white/30"
+                )}
+              >
+                {f.lb}
+                <div className="font-mono text-[10px] text-white/40 mt-0.5">{tasas[f.id]}% interés</div>
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-white/40 mt-2">Quincenal tiene la tasa más baja — es nuestra opción recomendada.</p>
         </div>
 
-        <label className={clsx(labelClass, "mb-2")}>Garantía — elige lo que dejarás como respaldo</label>
+        <label className={clsx(labelClass, "mb-2 mt-4")}>Garantía — elige lo que dejarás como respaldo</label>
         <div className="grid grid-cols-3 gap-2.5 mb-4">
           {GARANTIAS.map((g) => (
             <button
@@ -146,8 +190,10 @@ export default function SolicitarForm({ clienteId, prestamistaId }: { clienteId:
           <label className={labelClass}>Valor estimado (RD$, opcional)</label>
           <input type="number" value={valorEstimado} onChange={(e) => setValorEstimado(e.target.value)} className={fieldClass} />
           {Number(valorEstimado) > 0 && (
-            <p className="text-xs text-[#eac888]/80 mt-1.5">
-              Con ese valor, normalmente se aprueba hasta {money(Number(valorEstimado) * 0.6)} (60% del valor del artículo).
+            <p className={clsx("text-xs mt-1.5", descuentoAplicado ? "text-emerald-300" : "text-white/40")}>
+              {descuentoAplicado
+                ? `¡Tu garantía califica para un descuento de ${ltv.descuentoPuntos} puntos de interés! Tasa final: ${tasaFinal}% en vez de ${tasaBase}%.`
+                : `Si tu garantía vale ${ltv.umbral}x o más el monto solicitado, obtienes ${ltv.descuentoPuntos} puntos menos de interés.`}
             </p>
           )}
         </div>
@@ -166,7 +212,13 @@ export default function SolicitarForm({ clienteId, prestamistaId }: { clienteId:
         <div className="font-mono text-3xl font-bold mb-4 text-[#eac888]">{money(total)}</div>
         <div className="space-y-2.5 text-sm">
           <div className="flex justify-between border-b border-white/10 pb-2.5"><span className="text-white/50">Monto solicitado</span><span className="font-mono">{money(monto)}</span></div>
-          <div className="flex justify-between border-b border-white/10 pb-2.5"><span className="text-white/50">Interés (20%)</span><span className="font-mono">{money(interes)}</span></div>
+          <div className="flex justify-between border-b border-white/10 pb-2.5">
+            <span className="text-white/50">Interés ({tasaFinal}%)</span>
+            <span className="font-mono">
+              {money(interes)}
+              {descuentoAplicado && <span className="text-emerald-300 text-xs ml-1.5">(con descuento)</span>}
+            </span>
+          </div>
           <div className="flex justify-between border-b border-white/10 pb-2.5"><span className="text-white/50">Cuota por pago</span><span className="font-mono">{money(cuota)}</span></div>
           <div className="flex justify-between"><span className="text-white/50">Garantía</span><span>{tipoGarantia ? GARANTIAS.find((g) => g.id === tipoGarantia)?.lb : "— sin elegir —"}</span></div>
         </div>

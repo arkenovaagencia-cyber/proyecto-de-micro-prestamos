@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { Card } from "@/components/ui/Primitives";
 import LogoutButton from "@/components/LogoutButton";
 import AdminLoanTable from "./AdminLoanTable";
@@ -34,6 +35,7 @@ export default async function AdminDashboard() {
   const lista = prestamos ?? [];
   const dineroPrestado = lista.filter((p) => ["activo", "pagado"].includes(p.estado)).reduce((s, p) => s + Number(p.monto_aprobado ?? p.monto_solicitado), 0);
   const pendientePorCobrar = lista.filter((p) => p.estado === "activo").reduce((s, p) => s + Number(p.saldo_pendiente ?? 0), 0);
+  const solicitudesPendientes = lista.filter((p) => ["pendiente", "revision"].includes(p.estado)).length;
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -43,6 +45,7 @@ export default async function AdminDashboard() {
           Prestamigo <span className="text-white/30 font-normal">· Admin</span>
         </div>
         <div className="flex items-center gap-4 text-sm">
+          <Link href="/admin/configuracion" className="text-white/60 hover:text-[#eac888] transition">Personalizar página</Link>
           <span className="text-white/50">{profile.nombre}</span>
           <LogoutButton />
         </div>
@@ -52,8 +55,12 @@ export default async function AdminDashboard() {
         <h1 className="text-2xl font-semibold">Panel de administrador</h1>
         <p className="text-white/50 text-sm mt-1 mb-7">Todo el negocio, de un vistazo.</p>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-7">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-7">
           <Card className="p-5 border-l-2 border-l-[#eac888]/50"><div className="text-xs text-white/50 mb-2">Clientes registrados</div><div className="font-mono text-xl font-bold">{totalClientes ?? 0}</div></Card>
+          <Card className={`p-5 border-l-2 ${solicitudesPendientes > 0 ? "border-l-amber-400" : "border-l-[#eac888]/50"}`}>
+            <div className="text-xs text-white/50 mb-2">Solicitudes pendientes</div>
+            <div className={`font-mono text-xl font-bold ${solicitudesPendientes > 0 ? "text-amber-300" : ""}`}>{solicitudesPendientes}</div>
+          </Card>
           <Card className="p-5 border-l-2 border-l-[#eac888]/50"><div className="text-xs text-white/50 mb-2">Dinero prestado</div><div className="font-mono text-xl font-bold text-[#eac888]">{money(dineroPrestado)}</div></Card>
           <Card className="p-5 border-l-2 border-l-[#eac888]/50"><div className="text-xs text-white/50 mb-2">Pendiente por cobrar</div><div className="font-mono text-xl font-bold text-[#eac888]">{money(pendientePorCobrar)}</div></Card>
           <Card className="p-5 border-l-2 border-l-[#eac888]/50"><div className="text-xs text-white/50 mb-2">Solicitudes totales</div><div className="font-mono text-xl font-bold">{lista.length}</div></Card>

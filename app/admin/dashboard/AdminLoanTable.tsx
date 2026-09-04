@@ -54,6 +54,9 @@ export default function AdminLoanTable({ prestamos }: { prestamos: PrestamoRow[]
   const [modalRechazo, setModalRechazo] = useState<string | null>(null);
   const [modalAprobar, setModalAprobar] = useState<PrestamoRow | null>(null);
   const [modalFoto, setModalFoto] = useState<string | null>(null);
+  const [modalConfirmarPago, setModalConfirmarPago] = useState<PrestamoRow | null>(null);
+  const [modalEliminar, setModalEliminar] = useState<PrestamoRow | null>(null);
+  const [errorEliminar, setErrorEliminar] = useState<string | null>(null);
   const [motivo, setMotivo] = useState("");
   const [montoFinal, setMontoFinal] = useState("");
   const [tasaFinal, setTasaFinal] = useState("20");
@@ -140,6 +143,29 @@ export default function AdminLoanTable({ prestamos }: { prestamos: PrestamoRow[]
       estado: "confirmado",
     });
     setCargandoId(null);
+    setModalConfirmarPago(null);
+    router.refresh();
+  }
+
+  function calcularCuota(p: PrestamoRow) {
+    return (p.monto_aprobado ?? p.monto_solicitado) * (1 + p.tasa_interes / 100) / p.plazo_cuotas;
+  }
+
+  async function eliminarSolicitud(p: PrestamoRow) {
+    setCargandoId(p.id);
+    setErrorEliminar(null);
+    // Los pagos nunca se pueden borrar (protección de la base de datos),
+    // así que esto solo puede afectar solicitudes que nunca llegaron a
+    // tener un pago real — es decir, rechazadas.
+    await supabase.from("garantias").delete().eq("prestamo_id", p.id);
+    await supabase.from("cuotas").delete().eq("prestamo_id", p.id);
+    const { error: delError } = await supabase.from("prestamos").delete().eq("id", p.id);
+    setCargandoId(null);
+    if (delError) {
+      setErrorEliminar("No se pudo eliminar (probablemente tiene pagos asociados, por seguridad no se puede borrar historial con pagos).");
+      return;
+    }
+    setModalEliminar(null);
     router.refresh();
   }
 
@@ -148,7 +174,7 @@ export default function AdminLoanTable({ prestamos }: { prestamos: PrestamoRow[]
     const saldo = money(p.saldo_pendiente ?? 0);
     const nombre = p.clientes?.nombre_completo?.split(" ")[0] ?? "";
     const mensaje = encodeURIComponent(
-      `Hola ${nombre}, te escribimos de Prestamigo para recordarte que tienes un saldo pendiente de ${saldo}. ¿Podemos coordinar tu pago? Gracias.`
+      `Hola ${nombre}, te escribimos de Prestamigo para recordarte que tienes un saldo pendiente de ${saldo}. Recuerda que cada día de atraso se suman RD$50 al total. ¿Podemos coordinar tu pago? Gracias.`
     );
     return `https://wa.me/1${tel}?text=${mensaje}`;
   }
@@ -231,13 +257,16 @@ export default function AdminLoanTable({ prestamos }: { prestamos: PrestamoRow[]
                         )}
                         {p.estado === "activo" && (
                           <>
-                            <Button size="sm" variant="ghost" disabled={busy} onClick={() => registrarPago(p)}>Registrar pago</Button>
+                            <Button size="sm" variant="ghost" disabled={busy} onClick={() => setModalConfirmarPago(p)}>Registrar pago</Button>
                             {p.clientes?.telefono && (
                               <a href={linkWhatsapp(p)} target="_blank" rel="noopener noreferrer">
                                 <Button size="sm" variant="ghost" type="button">Recordar por WhatsApp</Button>
                               </a>
                             )}
                           </>
+                        )}
+                        {p.estado === "rechazado" && (
+                          <Button size="sm" variant="danger" disabled={busy} onClick={() => setModalEliminar(p)}>Eliminar</Button>
                         )}
                       </div>
                     </td>
@@ -283,6 +312,45 @@ export default function AdminLoanTable({ prestamos }: { prestamos: PrestamoRow[]
             <div className="flex justify-end gap-2">
               <Button size="sm" variant="ghost" onClick={() => setModalAprobar(null)}>Cancelar</Button>
               <Button size="sm" onClick={confirmarAprobar} disabled={cargandoId === modalAprobar.id}>Confirmar y activar</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: doble confirmación antes de registrar un pago (no se puede deshacer) */}
+      {modalConfirmarPago && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-5 z-50" onClick={(e) => e.target === e.currentTarget && setModalConfirmarPago(null)}>
+          <div className="bg-[#0a0906] border border-red-400/25 rounded-2xl p-7 max-w-sm w-full">
+            <h3 className="text-lg font-semibold mb-1">Confirmar registro de pago</h3>
+            <p className="text-sm text-white/50 mb-4">Esta acción <b className="text-red-300">no se puede deshacer</b> — el saldo del cliente se reducirá de inmediato.</p>
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-5 text-sm space-y-1.5">
+              <div className="flex justify-between"><span className="text-white/50">Cliente</span><span className="font-semibold">{modalConfirmarPago.clientes?.nombre_completo}</span></div>
+              <div className="flex justify-between"><span className="text-white/50">Monto a registrar</span><span className="font-mono text-[#eac888]">{money(calcularCuota(modalConfirmarPago))}</span></div>
+              <div className="flex justify-between"><span className="text-white/50">Método</span><span>Efectivo</span></div>
+            </div>
+            <p className="text-xs text-white/40 mb-5">Verifica que estos datos sean correctos antes de continuar.</p>
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="ghost" onClick={() => setModalConfirmarPago(null)}>Cancelar</Button>
+              <Button size="sm" variant="danger" disabled={cargandoId === modalConfirmarPago.id} onClick={() => registrarPago(modalConfirmarPago)}>
+                Sí, registrar este pago
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: eliminar solicitud rechazada */}
+      {modalEliminar && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-5 z-50" onClick={(e) => e.target === e.currentTarget && setModalEliminar(null)}>
+          <div className="bg-[#0a0906] border border-red-400/25 rounded-2xl p-7 max-w-sm w-full">
+            <h3 className="text-lg font-semibold mb-1">Eliminar solicitud</h3>
+            <p className="text-sm text-white/50 mb-4">
+              Se eliminará la solicitud de <b className="text-white">{modalEliminar.clientes?.nombre_completo}</b> por {money(modalEliminar.monto_solicitado)} — esta acción no se puede deshacer.
+            </p>
+            {errorEliminar && <div className="bg-red-400/10 text-red-300 text-sm rounded-xl px-4 py-3 mb-4">{errorEliminar}</div>}
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="ghost" onClick={() => { setModalEliminar(null); setErrorEliminar(null); }}>Cancelar</Button>
+              <Button size="sm" variant="danger" disabled={cargandoId === modalEliminar.id} onClick={() => eliminarSolicitud(modalEliminar)}>Sí, eliminar</Button>
             </div>
           </div>
         </div>
