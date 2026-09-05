@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/Primitives";
 import LogoutButton from "@/components/LogoutButton";
 import AdminLoanTable from "./AdminLoanTable";
+import PagosPendientes from "./PagosPendientes";
 
 function money(n: number) {
   return "RD$ " + Number(n).toLocaleString("es-DO", { maximumFractionDigits: 0 });
@@ -18,6 +19,15 @@ export default async function AdminDashboard() {
   if (!profile || (profile.role !== "prestamista_admin" && profile.role !== "plataforma_admin")) redirect("/cliente/dashboard");
 
   const esPlataformaAdmin = profile.role === "plataforma_admin";
+
+  let pagosPendientesQuery = supabase
+    .from("pagos")
+    .select("id, monto, metodo, comprobante_url, prestamos(clientes(nombre_completo), prestamista_id)")
+    .eq("estado", "pendiente");
+  const { data: pagosPendientes } = await pagosPendientesQuery;
+  const pagosFiltrados = esPlataformaAdmin
+    ? (pagosPendientes ?? [])
+    : (pagosPendientes ?? []).filter((p: any) => p.prestamos?.prestamista_id === profile.prestamista_id);
 
   let prestamosQuery = supabase
     .from("prestamos")
@@ -55,6 +65,8 @@ export default async function AdminDashboard() {
       <div className="max-w-6xl mx-auto px-6 pt-9 pb-20">
         <h1 className="text-2xl font-semibold">Panel de administrador</h1>
         <p className="text-white/50 text-sm mt-1 mb-7">Todo el negocio, de un vistazo.</p>
+
+        <PagosPendientes pagos={pagosFiltrados as any} />
 
         <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-7">
           <Card className="p-5 border-l-2 border-l-[#eac888]/50"><div className="text-xs text-white/50 mb-2">Clientes registrados</div><div className="font-mono text-xl font-bold">{totalClientes ?? 0}</div></Card>

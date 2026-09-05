@@ -13,6 +13,7 @@ interface Config {
   hero_subtitulo?: string | null;
   contacto?: Record<string, string> | null;
   config_prestamos?: Record<string, number> | null;
+  info_transferencia?: Record<string, string> | null;
 }
 
 const fieldClass = "w-full px-3.5 py-3 border border-white/15 rounded-xl text-sm bg-white/5 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#eac888]/40 focus:border-[#eac888]/60";
@@ -32,6 +33,12 @@ export default function ConfiguracionForm({ prestamistaId, initial }: { prestami
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [whatsapp, setWhatsapp] = useState((contacto as any).whatsapp ?? "");
   const [correo, setCorreo] = useState((contacto as any).correo ?? "");
+  const infoT = initial?.info_transferencia ?? {};
+  const [banco, setBanco] = useState((infoT as any).banco ?? "");
+  const [numeroCuenta, setNumeroCuenta] = useState((infoT as any).numero_cuenta ?? "");
+  const [tipoCuenta, setTipoCuenta] = useState((infoT as any).tipo_cuenta ?? "Ahorros");
+  const [titular, setTitular] = useState((infoT as any).titular ?? "");
+  const [paypalLink, setPaypalLink] = useState((infoT as any).paypal_link ?? "");
   const [tasaSemanal, setTasaSemanal] = useState(String(cp.tasa_semanal ?? 15));
   const [tasaQuincenal, setTasaQuincenal] = useState(String(cp.tasa_quincenal ?? 20));
   const [tasaMensual, setTasaMensual] = useState(String(cp.tasa_mensual ?? 30));
@@ -64,6 +71,7 @@ export default function ConfiguracionForm({ prestamistaId, initial }: { prestami
       hero_subtitulo: heroSubtitulo,
       logo_url: finalLogoUrl || null,
       contacto: { whatsapp, correo },
+      info_transferencia: { banco, numero_cuenta: numeroCuenta, tipo_cuenta: tipoCuenta, titular, paypal_link: paypalLink },
       config_prestamos: {
         tasa_semanal: Number(tasaSemanal),
         tasa_quincenal: Number(tasaQuincenal),
@@ -126,6 +134,28 @@ export default function ConfiguracionForm({ prestamistaId, initial }: { prestami
         <div>
           <label className={labelClass}>Correo de contacto</label>
           <input type="email" value={correo} onChange={(e) => setCorreo(e.target.value)} className={fieldClass} />
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold mb-1">Métodos de pago para clientes</h2>
+        <p className="text-xs text-white/40 mb-4">Esto es lo que verá el cliente al tocar "Pagar" en su panel.</p>
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div><label className={labelClass}>Banco</label><input value={banco} onChange={(e) => setBanco(e.target.value)} className={fieldClass} placeholder="Banco Popular" /></div>
+          <div><label className={labelClass}>Tipo de cuenta</label><input value={tipoCuenta} onChange={(e) => setTipoCuenta(e.target.value)} className={fieldClass} placeholder="Ahorros" /></div>
+        </div>
+        <div className="mb-4">
+          <label className={labelClass}>Número de cuenta</label>
+          <input value={numeroCuenta} onChange={(e) => setNumeroCuenta(e.target.value)} className={fieldClass} />
+        </div>
+        <div className="mb-5">
+          <label className={labelClass}>Titular de la cuenta</label>
+          <input value={titular} onChange={(e) => setTitular(e.target.value)} className={fieldClass} />
+        </div>
+        <div>
+          <label className={labelClass}>Enlace de PayPal (PayPal.me, opcional)</label>
+          <input value={paypalLink} onChange={(e) => setPaypalLink(e.target.value)} className={fieldClass} placeholder="https://paypal.me/tunombre" />
+          <p className="text-xs text-white/40 mt-1.5">Déjalo vacío si todavía no quieres ofrecer PayPal.</p>
         </div>
       </Card>
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Card, Badge } from "@/components/ui/Primitives";
 import LogoutButton from "@/components/LogoutButton";
+import PagoModal from "@/components/cliente/PagoModal";
 
 const TIPO_GARANTIA_LABEL: Record<string, string> = {
   telefono: "Teléfono móvil", tv: "Televisor", vehiculo: "Vehículo",
@@ -70,10 +71,13 @@ export default async function ClienteDashboard() {
   let moraDiaria = MORA_DIARIA_DEFAULT;
   let contactoWhatsapp: string | null = null;
   let contactoCorreo: string | null = null;
+  let infoTransferencia: Record<string, string> = {};
+  let prestamistaIdActual: string | null = null;
   if (profile?.prestamista_id) {
+    prestamistaIdActual = profile.prestamista_id;
     const { data: config } = await supabase
       .from("configuracion_plataforma")
-      .select("config_prestamos, contacto")
+      .select("config_prestamos, contacto, info_transferencia")
       .eq("prestamista_id", profile.prestamista_id)
       .single();
     const cp = (config?.config_prestamos ?? {}) as Record<string, number>;
@@ -81,6 +85,7 @@ export default async function ClienteDashboard() {
     const contacto = (config?.contacto ?? {}) as Record<string, string>;
     contactoWhatsapp = contacto.whatsapp || null;
     contactoCorreo = contacto.correo || null;
+    infoTransferencia = (config?.info_transferencia ?? {}) as Record<string, string>;
   }
 
   const activos = (prestamos ?? []).filter((p) => p.estado === "activo").length;
@@ -161,6 +166,13 @@ export default async function ClienteDashboard() {
                               {diasAtraso} {diasAtraso === 1 ? "día" : "días"} de atraso — recargo: <b className="font-mono">{money(recargo)}</b> (total a pagar: <b className="font-mono">{money(proximaCuota.monto_cuota + recargo)}</b>)
                             </div>
                           )}
+                          <PagoModal
+                            prestamoId={p.id}
+                            prestamistaId={prestamistaIdActual!}
+                            cuotaId={proximaCuota.id}
+                            montoSugerido={proximaCuota.monto_cuota + recargo}
+                            infoTransferencia={infoTransferencia}
+                          />
                         </>
                       );
                     })()}
