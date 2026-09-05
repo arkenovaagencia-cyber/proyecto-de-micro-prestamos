@@ -219,6 +219,11 @@ export default function AdminLoanTable({ prestamos }: { prestamos: PrestamoRow[]
                         <div>
                           <div className="font-semibold">{p.clientes?.nombre_completo ?? "—"}</div>
                           <div className="text-white/40 text-xs">{p.clientes?.correo}</div>
+                          {p.estado === "activo" && (
+                            <div className="text-[11px] text-white/50 font-mono mt-0.5">
+                              Capital: {money(p.monto_aprobado ?? p.monto_solicitado)} · Con interés: {money((p.monto_aprobado ?? p.monto_solicitado) * (1 + p.tasa_interes / 100))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>

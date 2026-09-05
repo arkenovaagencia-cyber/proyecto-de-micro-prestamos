@@ -64,7 +64,7 @@ export default function HomeExperience({
       {/* Contenido que se desliza encima del fondo fijo */}
       <main className="relative z-10">
         {/* Sección 1: Hero */}
-        <section className="min-h-screen flex flex-col items-center justify-center text-center px-6" style={{ scrollSnapAlign: "start" }}>
+        <section className="min-h-[100dvh] flex flex-col items-center justify-center text-center px-6" style={{ scrollSnapAlign: "start" }}>
           <Reveal>
             <span className="inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.16em] text-[#eac888]/90 border border-[#eac888]/25 bg-[#eac888]/[0.06] px-4 py-1.5 rounded-full mb-7">
               Tecnología financiera de confianza
@@ -106,7 +106,7 @@ export default function HomeExperience({
         </section>
 
         {/* Sección 2: Cómo funciona */}
-        <section id="como-funciona" className="min-h-screen flex flex-col items-center justify-center text-center px-6" style={{ scrollSnapAlign: "start" }}>
+        <section id="como-funciona" className="min-h-[100dvh] flex flex-col items-center justify-center text-center px-6" style={{ scrollSnapAlign: "start" }}>
           <Reveal>
             <span className="inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.16em] text-[#eac888]/90 border border-[#eac888]/25 bg-[#eac888]/[0.06] px-4 py-1.5 rounded-full mb-6">
               Tres pasos
@@ -133,7 +133,7 @@ export default function HomeExperience({
         </section>
 
         {/* Sección 3: Garantías */}
-        <section className="min-h-screen flex flex-col items-center justify-center text-center px-6" style={{ scrollSnapAlign: "start" }}>
+        <section className="min-h-[100dvh] flex flex-col items-center justify-center text-center px-6" style={{ scrollSnapAlign: "start" }}>
           <Reveal>
             <span className="inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.16em] text-[#eac888]/90 border border-[#eac888]/25 bg-[#eac888]/[0.06] px-4 py-1.5 rounded-full mb-6">
               Garantías aceptadas
@@ -154,7 +154,7 @@ export default function HomeExperience({
         </section>
 
         {/* Sección 4: Confianza + CTA final */}
-        <section id="confianza" className="min-h-screen flex flex-col items-center justify-center text-center px-6" style={{ scrollSnapAlign: "start" }}>
+        <section id="confianza" className="min-h-[100dvh] flex flex-col items-center justify-center text-center px-6" style={{ scrollSnapAlign: "start" }}>
           <Reveal>
             <span className="inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.16em] text-[#eac888]/90 border border-[#eac888]/25 bg-[#eac888]/[0.06] px-4 py-1.5 rounded-full mb-6">
               Confianza
